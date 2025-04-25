@@ -6,5 +6,6 @@ jobs:
     name: Deploy
     runs-on: ubuntu-cloud-runner
     steps:
+      - uses: actions/checkout@v4
       - name: Push changes
         run: python3 scripts/deploy.py
