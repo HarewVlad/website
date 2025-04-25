@@ -1,0 +1,10 @@
+name: CD action to push changes
+on:
+  push:
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push changes
+        run: python3 scripts/deploy.py
