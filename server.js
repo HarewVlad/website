@@ -17,6 +17,11 @@ app.prepare().then(() => {
   
   // Parse JSON request bodies
   server.use(bodyParser.json());
+  server.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Frame-Options', 'allow-from *');
+    next();
+  });
   
   // POST endpoint for file updates
   server.post('/update', async (req, res) => {
