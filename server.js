@@ -19,7 +19,6 @@ app.prepare().then(() => {
   server.use(bodyParser.json());
   server.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Security-Policy', 'frame-ancestors localhost');
     res.setHeader('X-Frame-Options', 'allow-from localhost');
     next();
   });
