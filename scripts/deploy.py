@@ -59,7 +59,7 @@ def main():
     for pattern in GLOBS:
         files = root.glob(pattern)
         for file in files:
-            NEEDED_FILES.add(file)
+            NEEDED_FILES.add(str(file))
 
     for rel_path in NEEDED_FILES:
         # Read file content
