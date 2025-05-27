@@ -24,83 +24,125 @@ app.prepare().then(() => {
     next();
   });
 
-  // POST endpoint for file updates
+  // POST endpoint for multiple file updates
   server.post('/update', async (req, res) => {
     try {
-      const { file_path, content } = req.body;
-
-      // Basic validation
-      if (!file_path || typeof content !== 'string') {
-        return res.status(400).json({ error: 'Invalid request parameters. Requires file_path and content.' });
+      const { files } = req.body;
+      
+      // Validate input structure
+      if (!files || !Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ 
+          error: 'Invalid request parameters. Requires files array with at least one file.' 
+        });
       }
-
-      // Security check - prevent directory traversal
-      const normalizedPath = path.normalize(file_path);
-      if (normalizedPath.includes('..')) {
-        return res.status(403).json({ error: 'Invalid file path. Directory traversal not allowed.' });
+      
+      // Validate each file object
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.file_path || typeof file.content !== 'string') {
+          return res.status(400).json({ 
+            error: `Invalid file object at index ${i}. Each file requires file_path and content.` 
+          });
+        }
+        
+        // Security check - prevent directory traversal
+        const normalizedPath = path.normalize(file.file_path);
+        if (normalizedPath.includes('..')) {
+          return res.status(403).json({ 
+            error: `Invalid file path at index ${i}. Directory traversal not allowed: ${file.file_path}` 
+          });
+        }
       }
-
-      // Make path absolute from project root
-      const absolutePath = path.join(process.cwd(), normalizedPath);
-      console.log('Updating file at:', absolutePath);
-
-      // Check if directory exists, create it if it doesn't
-      const directory = path.dirname(absolutePath);
-      if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, { recursive: true });
+      
+      const updatedFiles = [];
+      const errors = [];
+      
+      // Process all files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          // Make path absolute from project root
+          const normalizedPath = path.normalize(file.file_path);
+          const absolutePath = path.join(process.cwd(), normalizedPath);
+          
+          console.log(`Updating file ${i + 1}/${files.length} at:`, absolutePath);
+          
+          // Check if directory exists, create it if it doesn't
+          const directory = path.dirname(absolutePath);
+          if (!fs.existsSync(directory)) {
+            fs.mkdirSync(directory, { recursive: true });
+          }
+          
+          // Write content to file
+          fs.writeFileSync(absolutePath, file.content, 'utf8');
+          updatedFiles.push(file.file_path);
+          
+        } catch (fileError) {
+          console.error(`Error updating file ${file.file_path}:`, fileError);
+          errors.push({
+            file_path: file.file_path,
+            error: fileError.message,
+            code: fileError?.code
+          });
+        }
       }
-
-      // Write content to file
-      fs.writeFileSync(absolutePath, content, 'utf8');
-      console.log('File updated successfully');
-
-      // If we're in production mode, we need to rebuild
-      if (!dev && process.env.ENABLE_REBUILD === 'true') {
+      
+      console.log(`Successfully updated ${updatedFiles.length} files`);
+      if (errors.length > 0) {
+        console.log(`Failed to update ${errors.length} files`);
+      }
+      
+      // If we're in production mode and have successfully updated at least one file, trigger rebuild
+      if (!dev && process.env.ENABLE_REBUILD === 'true' && updatedFiles.length > 0) {
         console.log('Starting rebuild process...');
-
+        
         // Send initial response before starting rebuild
         res.status(202).json({
           success: true,
-          message: `File updated successfully. Rebuild started.`,
+          message: `Updated ${updatedFiles.length} file(s) successfully. Rebuild started.`,
+          updated_files: updatedFiles,
+          failed_files: errors,
           rebuilding: true
         });
-
+        
         // Execute rebuild command
         exec('npm run build', (error, stdout, stderr) => {
           if (error) {
             console.error(`Rebuild error: ${error.message}`);
             return;
           }
-
           if (stderr) {
             console.error(`Rebuild stderr: ${stderr}`);
           }
-
           console.log(`Rebuild completed: ${stdout}`);
-
+          
           // Optionally restart the server
           if (process.env.RESTART_AFTER_REBUILD === 'true') {
             console.log('Restarting server...');
             process.exit(0); // Railway will automatically restart the service
           }
         });
-
+        
         // We've already sent the response, so return to end this function
         return;
       }
-
-      // If we're in dev mode or rebuild is disabled, just send a success response
-      return res.status(200).json({
-        success: true,
-        message: `File updated successfully: ${file_path}`,
+      
+      // If we're in dev mode, rebuild is disabled, or no files were updated successfully
+      const statusCode = errors.length === 0 ? 200 : (updatedFiles.length > 0 ? 207 : 500);
+      
+      return res.status(statusCode).json({
+        success: updatedFiles.length > 0,
+        message: `Updated ${updatedFiles.length} file(s) successfully${errors.length > 0 ? `, ${errors.length} failed` : ''}`,
+        updated_files: updatedFiles,
+        failed_files: errors,
         rebuilt: false,
         dev_mode: dev
       });
-
+      
     } catch (error) {
-      console.error('Error updating file:', error);
+      console.error('Error in multi-file update:', error);
       return res.status(500).json({
-        error: 'Failed to update file',
+        error: 'Failed to process file updates',
         details: error.message,
         code: error?.code
       });
