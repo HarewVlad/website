@@ -4,22 +4,31 @@ import sys
 import json
 import ssl
 from http.client import HTTPSConnection
-from urllib.parse import urlparse
+from pathlib import Path
 
 # === Configuration ===
 # Environment variable that holds the host (and optional port) of the update server,
 # e.g. "updates.example.com" or "updates.example.com:443"
-UPDATE_HOST = os.getenv('UPDATE_HOST')
+UPDATE_HOST = os.getenv("UPDATE_HOST")
 if not UPDATE_HOST:
     print("Error: UPDATE_HOST environment variable is not set", file=sys.stderr)
     sys.exit(1)
 
-# List of files (relative paths) that we allow to be pushed
-TRACKED_FILES = [
-    "./src/app/page.tsx"
+# === Helpers ===
+GLOBS = [
+    "**/*.js*",
+    "**/*.ts*",
+    "**/*.css*",
+    "**/*.html*",
+    "**/*.json*",
+    "**/*.md*",
+    "**/*.txt*",
+    "**/*.yaml*",
+    "**/*.yml*",
+    "**/*.xml*",
+    "**/*.svg*",
 ]
 
-# === Helpers ===
 
 def post_update(host, path, payload):
     """
@@ -29,24 +38,33 @@ def post_update(host, path, payload):
     conn = HTTPSConnection(host, context=ssl.create_default_context())
     body = json.dumps(payload)
     headers = {
-        'Content-Type': 'application/json',
-        'Content-Length': str(len(body)),
+        "Content-Type": "application/json",
+        "Content-Length": str(len(body)),
     }
     conn.request("POST", path, body=body, headers=headers)
     response = conn.getresponse()
-    data = response.read().decode('utf-8')
+    data = response.read().decode("utf-8")
     conn.close()
     return response.status, data
 
+
 # === Main ===
+
 
 def main():
     failures = 0
+    root = Path(".")
 
-    for rel_path in TRACKED_FILES:
+    NEEDED_FILES = set()
+    for pattern in GLOBS:
+        files = root.glob(pattern)
+        for file in files:
+            NEEDED_FILES.add(file)
+
+    for rel_path in NEEDED_FILES:
         # Read file content
         try:
-            with open(rel_path, 'r', encoding='utf-8') as f:
+            with open(rel_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             print(f"Failed to read '{rel_path}': {e}", file=sys.stderr)
@@ -54,10 +72,7 @@ def main():
             continue
 
         # Prepare payload
-        payload = {
-            "file_path": rel_path,
-            "content": content
-        }
+        payload = {"file_path": rel_path, "content": content}
 
         # Send to update endpoint
         try:
@@ -80,6 +95,7 @@ def main():
     else:
         print("\nDeployment completed successfully.")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
