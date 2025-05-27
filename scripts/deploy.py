@@ -54,47 +54,87 @@ def post_update(host, path, payload):
 def main():
     failures = 0
     root = Path(".")
-
     NEEDED_FILES = set()
+
+    # Collect all files matching the patterns
     for pattern in GLOBS:
         files = root.glob(pattern)
         for file in files:
             NEEDED_FILES.add(str(file))
 
+    # Read all files and prepare payload
+    files_payload = []
     for rel_path in NEEDED_FILES:
-        # Read file content
         try:
             with open(rel_path, "r", encoding="utf-8") as f:
                 content = f.read()
+
+            files_payload.append({"file_path": rel_path, "content": content})
+            print(f"📁 Prepared '{rel_path}' for upload")
+
         except Exception as e:
             print(f"Failed to read '{rel_path}': {e}", file=sys.stderr)
             failures += 1
             continue
 
-        # Prepare payload
-        payload = {"file_path": rel_path, "content": content}
-
-        # Send to update endpoint
-        try:
-            status, resp = post_update(UPDATE_HOST, "/update", payload)
-        except Exception as e:
-            print(f"Network error pushing '{rel_path}': {e}", file=sys.stderr)
-            failures += 1
-            continue
-
-        # Evaluate response
-        if status in (200, 202):
-            print(f"✅ {rel_path} -> succeeded (HTTP {status})")
-        else:
-            print(f"❌ {rel_path} -> failed (HTTP {status}): {resp}", file=sys.stderr)
-            failures += 1
-
-    if failures:
-        print(f"\nDeployment finished with {failures} error(s).", file=sys.stderr)
+    # If no files were successfully read, exit early
+    if not files_payload:
+        print("No files to upload.", file=sys.stderr)
         sys.exit(1)
+
+    # Prepare multi-file payload
+    payload = {"files": files_payload}
+
+    print(f"\n🚀 Uploading {len(files_payload)} file(s) to server...")
+
+    # Send all files in a single request
+    try:
+        status, resp = post_update(UPDATE_HOST, "/update", payload)
+    except Exception as e:
+        print(f"Network error during upload: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Evaluate response
+    if status in (200, 202, 207):  # Include 207 Multi-Status
+        print(f"✅ Upload completed (HTTP {status})")
+
+        # Parse response details if available
+        if isinstance(resp, dict):
+            updated_files = resp.get("updated_files", [])
+            failed_files = resp.get("failed_files", [])
+            rebuilding = resp.get("rebuilding", False)
+
+            print(f"📊 Successfully updated: {len(updated_files)} file(s)")
+
+            # Show successful files
+            for file_path in updated_files:
+                print(f"  ✅ {file_path}")
+
+            # Show failed files
+            if failed_files:
+                print(f"📊 Failed to update: {len(failed_files)} file(s)")
+                for failed_file in failed_files:
+                    file_path = failed_file.get("file_path", "unknown")
+                    error_msg = failed_file.get("error", "unknown error")
+                    print(f"  ❌ {file_path}: {error_msg}")
+                failures += len(failed_files)
+
+            # Show rebuild status
+            if rebuilding:
+                print("🔄 Server rebuild started...")
+            elif resp.get("dev_mode"):
+                print("🔧 Running in development mode (no rebuild needed)")
+
+        # Determine final success based on whether any files failed
+        if failures == 0:
+            print("\n🎉 Deployment completed successfully.")
+            sys.exit(0)
+        else:
+            print(f"\n⚠️  Deployment completed with {failures} error(s).")
+            sys.exit(1)
     else:
-        print("\nDeployment completed successfully.")
-        sys.exit(0)
+        print(f"❌ Upload failed (HTTP {status}): {resp}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

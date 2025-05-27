@@ -3,7 +3,6 @@ const next = require('next');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
-const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer');
 
 // Get environment from ENV var, default to production
@@ -17,7 +16,7 @@ app.prepare().then(() => {
   const server = express();
 
   // Parse JSON request bodies
-  server.use(bodyParser.json());
+  server.use(express.json({ limit: '100mb' }));
   server.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('X-Frame-Options', 'allow-from localhost');
