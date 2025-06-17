@@ -105,7 +105,7 @@ app.prepare().then(() => {
         });
         
         // Execute rebuild command
-        exec('npm run build', (error, stdout, stderr) => {
+        exec('npm run process-site', (error, stdout, stderr) => {
           if (error) {
             console.error(`Rebuild error: ${error.message}`);
             return;
