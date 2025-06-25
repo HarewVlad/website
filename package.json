@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "next start",
-    "fix": "node ts-morph-fixer.ts src",
+    "fix": "node ts-morph-fixer.ts .",
     "install-deps": "npm install --strict-peer-dependencies=false",
     "lint": "npm exec eslint . --fix",
     "format": "npm exec prettier --write . --ignore-unknown",
