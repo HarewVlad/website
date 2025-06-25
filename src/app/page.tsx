@@ -1,54 +1,49 @@
 
 "use client";
 
-import { useState } from "react";
-import { 
-  Bell, 
-  CreditCard, 
-  DollarSign, 
-  History, 
-  PiggyBank, 
-  Send, 
-  Settings, 
-  Shield, 
-  User,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Plus
-} from "lucide-react";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
-import { 
-  Button 
-} from "@/components/ui/button";
-import { 
-  Avatar, 
-  AvatarFallback 
+import {
+    Avatar,
+    AvatarFallback
 } from "@/components/ui/avatar";
-import { 
-  Badge 
+import {
+    Badge
 } from "@/components/ui/badge";
-import { 
-  Separator 
-} from "@/components/ui/separator";
+import {
+    Button
+} from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle
+} from "@/components/ui/card";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow
+} from "@/components/ui/table";
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger
+} from "@/components/ui/tabs";
+import {
+    ArrowDownLeft,
+    ArrowUpRight,
+    Bell,
+    CreditCard,
+    DollarSign,
+    History,
+    PiggyBank,
+    Plus,
+    Send,
+    Shield
+} from "lucide-react";
+import { useState } from "react";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
